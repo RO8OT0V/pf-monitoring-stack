@@ -101,7 +101,7 @@ pipeline {
                             echo "🔍 Validating Prometheus configuration..."
                             if [ -f "prometheus/prometheus.yml" ]; then
                                 # Используем promtool для валидации
-                                docker run --rm -v $(pwd)/prometheus:/etc/prometheus \\
+                                docker run --rm -v ${PWD}/prometheus:/etc/prometheus \\
                                     prom/prometheus:latest \\
                                     promtool check config /etc/prometheus/prometheus.yml
                                 echo "✅ Prometheus configuration is valid"
@@ -302,8 +302,8 @@ pipeline {
                 sh '''
                     echo "📊 Generating deployment report..."
                     
-                    # Создаем отчет
-                    cat > deployment_report.html << EOF
+                    # Создаем отчет (исправлены экранирования)
+                    cat > deployment_report.html << 'EOF'
 <!DOCTYPE html>
 <html>
 <head>
@@ -321,18 +321,29 @@ pipeline {
 </head>
 <body>
     <h1>🚀 Monitoring Stack Deployment Report</h1>
-    <p><strong>Deployment Date:</strong> $(date)</p>
-    <p><strong>Build Number:</strong> ${BUILD_NUMBER}</p>
-    <p><strong>User:</strong> RO8OT0V</p>
-    <p><strong>Server:</strong> Arch Linux (192.168.1.67)</p>
+EOF
+                    
+                    # Добавляем динамический контент
+                    echo "    <p><strong>Deployment Date:</strong> $(date)</p>" >> deployment_report.html
+                    echo "    <p><strong>Build Number:</strong> ${BUILD_NUMBER}</p>" >> deployment_report.html
+                    echo "    <p><strong>User:</strong> RO8OT0V</p>" >> deployment_report.html
+                    echo "    <p><strong>Server:</strong> Arch Linux (192.168.1.67)</p>" >> deployment_report.html
+                    
+                    # Добавляем таблицу сервисов
+                    cat >> deployment_report.html << 'EOF'
     
     <h2>📋 Service Status</h2>
     <table>
         <tr><th>Service</th><th>Port</th><th>Status</th><th>URL</th></tr>
-        <tr><td>Prometheus</td><td>${PROMETHEUS_PORT}</td><td class="success">✅ Running</td><td><a href="http://192.168.1.67:${PROMETHEUS_PORT}">http://192.168.1.67:${PROMETHEUS_PORT}</a></td></tr>
-        <tr><td>Grafana</td><td>${GRAFANA_PORT}</td><td class="success">✅ Running</td><td><a href="http://192.168.1.67:${GRAFANA_PORT}">http://192.168.1.67:${GRAFANA_PORT}</a></td></tr>
-        <tr><td>Node Exporter</td><td>${NODE_EXPORTER_PORT}</td><td class="success">✅ Running</td><td><a href="http://192.168.1.67:${NODE_EXPORTER_PORT}">http://192.168.1.67:${NODE_EXPORTER_PORT}</a></td></tr>
-        <tr><td>Jenkins</td><td>${JENKINS_PORT}</td><td class="info">ℹ️ External</td><td><a href="http://192.168.1.67:${JENKINS_PORT}">http://192.168.1.67:${JENKINS_PORT}</a></td></tr>
+EOF
+                    
+                    echo "        <tr><td>Prometheus</td><td>${PROMETHEUS_PORT}</td><td class=\"success\">✅ Running</td><td><a href=\"http://192.168.1.67:${PROMETHEUS_PORT}\">http://192.168.1.67:${PROMETHEUS_PORT}</a></td></tr>" >> deployment_report.html
+                    echo "        <tr><td>Grafana</td><td>${GRAFANA_PORT}</td><td class=\"success\">✅ Running</td><td><a href=\"http://192.168.1.67:${GRAFANA_PORT}\">http://192.168.1.67:${GRAFANA_PORT}</a></td></tr>" >> deployment_report.html
+                    echo "        <tr><td>Node Exporter</td><td>${NODE_EXPORTER_PORT}</td><td class=\"success\">✅ Running</td><td><a href=\"http://192.168.1.67:${NODE_EXPORTER_PORT}\">http://192.168.1.67:${NODE_EXPORTER_PORT}</a></td></tr>" >> deployment_report.html
+                    echo "        <tr><td>Jenkins</td><td>${JENKINS_PORT}</td><td class=\"info\">ℹ️ External</td><td><a href=\"http://192.168.1.67:${JENKINS_PORT}\">http://192.168.1.67:${JENKINS_PORT}</a></td></tr>" >> deployment_report.html
+                    
+                    # Завершаем HTML
+                    cat >> deployment_report.html << 'EOF'
     </table>
     
     <h2>📊 System Metrics</h2>
@@ -369,7 +380,8 @@ EOF
     post {
         always {
             script {
-                echo "🏁 Pipeline completed at $(date)"
+                def currentDate = new Date().format("yyyy-MM-dd HH:mm:ss")
+                echo "🏁 Pipeline completed at ${currentDate}"
                 
                 // Собираем логи
                 sh '''
