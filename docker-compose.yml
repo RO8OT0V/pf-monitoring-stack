@@ -5,16 +5,20 @@ services:
     ports:
       - "9100:9090"
     volumes:
-      - ./prometheus:/etc/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
+    networks:
+      - monitoring
     restart: unless-stopped
-    
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -22,16 +26,16 @@ services:
       - "9101:3000"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - monitoring
     restart: unless-stopped
-    depends_on:
-      - prometheus
-    
+
   node-exporter:
     image: prom/node-exporter:latest
     container_name: node-exporter
@@ -41,21 +45,19 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-      - /run/systemd/private:/run/systemd/private:ro
     command:
       - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
-      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
-      - '--collector.systemd'
-      - '--collector.processes'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    networks:
+      - monitoring
     restart: unless-stopped
-    privileged: true
+
+networks:
+  monitoring:
+    driver: bridge
 
 volumes:
   prometheus_data:
   grafana_data:
-
-networks:
-  default:
-    name: monitoring
