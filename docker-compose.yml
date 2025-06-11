@@ -1,4 +1,21 @@
 services:
+  # Служебный контейнер для инициализации конфигурации
+  prometheus-init:
+    image: alpine:latest
+    container_name: prometheus-init
+    volumes:
+      - ./prometheus:/host-config:ro
+      - prometheus-config:/etc/prometheus
+    command: >
+      sh -c "
+        echo '📁 Copying Prometheus configuration...'
+        cp /host-config/prometheus.yml /etc/prometheus/prometheus.yml
+        mkdir -p /etc/prometheus/rules
+        cp -r /host-config/rules/* /etc/prometheus/rules/ || echo 'No rules to copy'
+        echo '✅ Configuration ready'
+        ls -la /etc/prometheus/
+      "
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus_pf
@@ -18,7 +35,8 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
-    user: "65534:65534"  # nobody user как в документации
+    depends_on:
+      - prometheus-init
 
   grafana:
     image: grafana/grafana:latest
@@ -36,7 +54,6 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
-    user: "472:472"  # grafana user
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -55,7 +72,6 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
-    user: "65534:65534"  # nobody user
 
 networks:
   monitoring:
@@ -63,7 +79,5 @@ networks:
 
 volumes:
   prometheus-config:
-    external: true
   prometheus-data:
-    external: true
   grafana-data:
