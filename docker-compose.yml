@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   prometheus:
     image: prom/prometheus:latest
@@ -7,9 +5,8 @@ services:
     ports:
       - "9100:9090"
     volumes:
-      # Монтируем всю директорию prometheus вместо отдельного файла
-      - ./prometheus:/etc/prometheus:ro
-      - prometheus_data:/prometheus
+      - prometheus-config:/etc/prometheus:ro
+      - prometheus-data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -21,6 +18,7 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
+    user: "65534:65534"  # nobody user как в документации
 
   grafana:
     image: grafana/grafana:latest
@@ -28,7 +26,7 @@ services:
     ports:
       - "9101:3000"
     volumes:
-      - grafana_data:/var/lib/grafana
+      - grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     environment:
@@ -38,6 +36,7 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
+    user: "472:472"  # grafana user
 
   node-exporter:
     image: prom/node-exporter:latest
@@ -56,11 +55,15 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
+    user: "65534:65534"  # nobody user
 
 networks:
   monitoring:
     driver: bridge
 
 volumes:
-  prometheus_data:
-  grafana_data:
+  prometheus-config:
+    external: true
+  prometheus-data:
+    external: true
+  grafana-data:
