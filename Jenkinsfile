@@ -100,10 +100,10 @@ pipeline {
                         sh '''
                             echo "🔍 Validating Prometheus configuration..."
                             if [ -f "prometheus/prometheus.yml" ]; then
-                                # Используем promtool для валидации
-                                docker run --rm -v ${PWD}/prometheus:/etc/prometheus \\
+                                # Используем promtool для валидации (ИСПРАВЛЕНО)
+                                docker run --rm -v "${PWD}/prometheus:/etc/prometheus" \\
                                     prom/prometheus:latest \\
-                                    promtool check config /etc/prometheus/prometheus.yml
+                                    /bin/promtool check config /etc/prometheus/prometheus.yml
                                 echo "✅ Prometheus configuration is valid"
                             else
                                 echo "❌ prometheus/prometheus.yml not found!"
