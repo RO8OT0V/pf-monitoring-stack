@@ -178,34 +178,26 @@ pipeline {
             }
         }
         
-        stage('🩺 Health Checks') {
+        stage('🏥 Health Checks') {
             parallel {
                 stage('📊 Prometheus Health') {
                     steps {
                         script {
-                            retry(3) {
-                                sh '''
-                                    echo "🔍 Checking Prometheus health..."
-                                    
-                                    # Проверяем готовность
-                                    if curl -f -s http://localhost:${PROMETHEUS_PORT}/-/ready; then
-                                        echo "✅ Prometheus is ready"
-                                    else
-                                        echo "❌ Prometheus not ready"
-                                        exit 1
+                            sh '''
+                                echo "🔍 Checking Prometheus health..."
+                                timeout=30
+                                while [ $timeout -gt 0 ]; do
+                                    if curl -f -s http://localhost:9100/api/v1/query?query=up >/dev/null 2>&1; then
+                                        echo "✅ Prometheus is healthy"
+                                        exit 0
                                     fi
-                                    
-                                    # Проверяем targets
-                                    targets=$(curl -s http://localhost:${PROMETHEUS_PORT}/api/v1/targets | jq '.data.activeTargets | length')
-                                    echo "📈 Active targets: $targets"
-                                    
-                                    if [ "$targets" -ge 2 ]; then
-                                        echo "✅ Prometheus has sufficient active targets"
-                                    else
-                                        echo "⚠️ Low number of active targets"
-                                    fi
-                                '''
-                            }
+                                    echo "⏳ Waiting for Prometheus... ($timeout seconds left)"
+                                    sleep 2
+                                    timeout=$((timeout-2))
+                                done
+                                echo "❌ Prometheus health check failed"
+                                exit 1
+                            '''
                         }
                     }
                 }
@@ -213,26 +205,21 @@ pipeline {
                 stage('📈 Grafana Health') {
                     steps {
                         script {
-                            retry(3) {
-                                sh '''
-                                    echo "🔍 Checking Grafana health..."
-                                    
-                                    # Проверяем API health
-                                    response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:${GRAFANA_PORT}/api/health)
-                                    
-                                    if [ "$response" = "200" ]; then
-                                        echo "✅ Grafana API is healthy"
-                                    else
-                                        echo "❌ Grafana health check failed: HTTP $response"
-                                        exit 1
+                            sh '''
+                                echo "🔍 Checking Grafana health..."
+                                timeout=30
+                                while [ $timeout -gt 0 ]; do
+                                    if curl -f -s http://localhost:9101/api/health >/dev/null 2>&1; then
+                                        echo "✅ Grafana is healthy"
+                                        exit 0
                                     fi
-                                    
-                                    # Проверяем datasources
-                                    sleep 10
-                                    datasources=$(curl -s -u admin:admin http://localhost:${GRAFANA_PORT}/api/datasources | jq '. | length' 2>/dev/null || echo "0")
-                                    echo "🔗 Configured datasources: $datasources"
-                                '''
-                            }
+                                    echo "⏳ Waiting for Grafana... ($timeout seconds left)"
+                                    sleep 2
+                                    timeout=$((timeout-2))
+                                done
+                                echo "❌ Grafana health check failed"
+                                exit 1
+                            '''
                         }
                     }
                 }
@@ -240,22 +227,15 @@ pipeline {
                 stage('🖥️ Node Exporter Health') {
                     steps {
                         script {
-                            retry(3) {
-                                sh '''
-                                    echo "🔍 Checking Node Exporter health..."
-                                    
-                                    # Проверяем метрики
-                                    if curl -s http://localhost:${NODE_EXPORTER_PORT}/metrics | head -10 | grep -q "node_"; then
-                                        echo "✅ Node Exporter is providing metrics"
-                                    else
-                                        echo "❌ Node Exporter metrics not available"
-                                        exit 1
-                                    fi
-                                    
-                                    metrics_count=$(curl -s http://localhost:${NODE_EXPORTER_PORT}/metrics | wc -l)
-                                    echo "📊 Available metrics: $metrics_count"
-                                '''
-                            }
+                            sh '''
+                                echo "🔍 Checking Node Exporter health..."
+                                if curl -f -s http://localhost:9102/metrics | head -1 | grep -q "node_"; then
+                                    echo "✅ Node Exporter is healthy"
+                                else
+                                    echo "❌ Node Exporter health check failed"
+                                    exit 1
+                                fi
+                            '''
                         }
                     }
                 }
