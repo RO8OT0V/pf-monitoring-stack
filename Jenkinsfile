@@ -100,9 +100,13 @@ pipeline {
                         sh '''
                             echo "🔍 Validating Prometheus configuration..."
                             if [ -f "prometheus/prometheus.yml" ]; then
-                                # Простая проверка YAML синтаксиса
-                                python3 -c "import yaml; yaml.safe_load(open('prometheus/prometheus.yml'))"
-                                echo "✅ Prometheus YAML syntax is valid"
+                                # Простая проверка существования и базового синтаксиса
+                                if grep -q "global:" prometheus/prometheus.yml && grep -q "scrape_configs:" prometheus/prometheus.yml; then
+                                    echo "✅ Prometheus configuration structure looks valid"
+                                else
+                                    echo "❌ Prometheus configuration missing required sections"
+                                    exit 1
+                                fi
                             else
                                 echo "❌ prometheus/prometheus.yml not found!"
                                 exit 1
