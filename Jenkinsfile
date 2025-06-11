@@ -145,126 +145,34 @@ pipeline {
                     echo "🚀 Deploying monitoring stack..."
                     
                     sh '''
-                        # Отладочная информация
                         echo "📁 Current directory: $(pwd)"
                         echo "📋 Directory contents:"
                         ls -la
                         
-                        echo "🔍 Checking prometheus directory and files:"
-                        if [ -d "prometheus" ]; then
-                            echo "✅ prometheus/ directory exists"
-                            ls -la prometheus/
-                            
-                            if [ -f "prometheus/prometheus.yml" ]; then
-                                echo "✅ prometheus.yml file exists"
-                                echo "📄 File size: $(stat -f%z prometheus/prometheus.yml 2>/dev/null || stat -c%s prometheus/prometheus.yml)"
-                                echo "📄 File type: $(file prometheus/prometheus.yml)"
-                                echo "📄 First few lines:"
-                                head -5 prometheus/prometheus.yml
-                            else
-                                echo "❌ prometheus.yml file NOT found!"
-                                echo "Creating basic prometheus.yml..."
-                                
-                                # Создаем базовый prometheus.yml если его нет
-                                cat > prometheus/prometheus.yml << 'EOF'
-        global:
-          scrape_interval: 15s
-          evaluation_interval: 15s
-        
-        rule_files:
-          - "rules/*.yml"
-        
-        scrape_configs:
-          - job_name: 'prometheus'
-            static_configs:
-              - targets: ['localhost:9090']
-        
-          - job_name: 'node-exporter'
-            static_configs:
-              - targets: ['node-exporter:9100']
-        
-          - job_name: 'grafana'
-            static_configs:
-              - targets: ['grafana:3000']
-        EOF
-                                echo "✅ Basic prometheus.yml created"
-                            fi
+                        echo "🔍 Checking prometheus configuration:"
+                        if [ -f "prometheus/prometheus.yml" ]; then
+                            echo "✅ prometheus.yml exists"
+                            ls -la prometheus/prometheus.yml
                         else
-                            echo "❌ prometheus/ directory NOT found!"
-                            echo "Creating prometheus directory and config..."
-                            mkdir -p prometheus
-                            cat > prometheus/prometheus.yml << 'EOF'
-        global:
-          scrape_interval: 15s
-          evaluation_interval: 15s
-        
-        scrape_configs:
-          - job_name: 'prometheus'
-            static_configs:
-              - targets: ['localhost:9090']
-        
-          - job_name: 'node-exporter'
-            static_configs:
-              - targets: ['node-exporter:9100']
-        
-          - job_name: 'grafana'
-            static_configs:
-              - targets: ['grafana:3000']
-        EOF
+                            echo "❌ prometheus.yml missing!"
+                            exit 1
                         fi
                         
-                        # Создаем необходимые директории
-                        echo "📁 Creating data directories..."
-                        mkdir -p prometheus/data grafana/data prometheus/rules
-                        
-                        # Создаем базовый файл правил если его нет
-                        if [ ! -f "prometheus/rules/alerts.yml" ]; then
-                            echo "Creating basic alerts.yml..."
-                            cat > prometheus/rules/alerts.yml << 'EOF'
-        groups:
-          - name: basic
-            rules:
-            - alert: InstanceDown
-              expr: up == 0
-              for: 1m
-              labels:
-                severity: critical
-              annotations:
-                summary: "Instance {{ $labels.instance }} down"
-        EOF
-                        fi
-                        
-                        # Устанавливаем права
-                        sudo chown -R 472:472 grafana/data 2>/dev/null || echo "⚠️ Could not set Grafana permissions"
-                        sudo chown -R 65534:65534 prometheus/data 2>/dev/null || echo "⚠️ Could not set Prometheus permissions"
+                        # Создаем директории
+                        mkdir -p prometheus/data grafana/data
                         
                         # Останавливаем существующие контейнеры
-                        echo "🛑 Stopping existing containers..."
                         docker-compose down --remove-orphans || true
                         
-                        # Финальная проверка перед запуском
-                        echo "🔍 Final verification before starting:"
-                        ls -la prometheus/prometheus.yml
-                        echo "📄 Config file contents:"
-                        cat prometheus/prometheus.yml
-                        
                         # Запускаем стек
-                        echo "🐳 Starting Docker Compose stack..."
-                        docker-compose up -d --build
+                        echo "🐳 Starting containers..."
+                        docker-compose up -d
                         
-                        echo "⏳ Waiting for services to initialize..."
+                        # Ждем инициализации
                         sleep 30
                         
-                        echo "📋 Container status:"
+                        echo "📊 Container status:"
                         docker-compose ps
-                        
-                        echo "🔍 Container logs:"
-                        echo "--- Prometheus logs ---"
-                        docker logs prometheus_pf --tail=5 || true
-                        echo "--- Grafana logs ---"  
-                        docker logs grafana --tail=5 || true
-                        echo "--- Node Exporter logs ---"
-                        docker logs node-exporter --tail=5 || true
                     '''
                 }
             }
