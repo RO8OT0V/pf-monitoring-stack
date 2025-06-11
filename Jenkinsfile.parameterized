@@ -1,0 +1,37 @@
+pipeline {
+    agent any
+    
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['development', 'staging', 'production'],
+            description: 'Environment to deploy to'
+        )
+        
+        booleanParam(
+            name: 'RUN_TESTS',
+            defaultValue: true,
+            description: 'Run integration tests'
+        )
+        
+        booleanParam(
+            name: 'STRESS_TEST',
+            defaultValue: false,
+            description: 'Run stress tests'
+        )
+        
+        string(
+            name: 'GRAFANA_VERSION',
+            defaultValue: 'latest',
+            description: 'Grafana Docker image version'
+        )
+        
+        string(
+            name: 'PROMETHEUS_VERSION',
+            defaultValue: 'latest',
+            description: 'Prometheus Docker image version'
+        )
+    }
+    
+    // Остальная логика pipeline...
+}
