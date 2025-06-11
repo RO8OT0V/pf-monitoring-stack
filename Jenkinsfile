@@ -145,6 +145,17 @@ pipeline {
                     echo "🚀 Deploying monitoring stack..."
                     
                     sh '''
+                        # Отладочная информация
+                        echo "📁 Current directory: $(pwd)"
+                        echo "📋 Directory contents:"
+                        ls -la
+                        
+                        echo "🔍 Prometheus directory:"
+                        ls -la prometheus/ || echo "❌ No prometheus directory"
+                        
+                        echo "🔍 Prometheus config file:"
+                        cat prometheus/prometheus.yml || echo "❌ No prometheus.yml file"
+                        
                         # Создаем необходимые директории и права
                         echo "📁 Creating directories and setting permissions..."
                         mkdir -p prometheus/data grafana/data
@@ -152,6 +163,9 @@ pipeline {
                         # Устанавливаем права для Grafana и Prometheus
                         sudo chown -R 472:472 grafana/data 2>/dev/null || echo "⚠️ Could not set Grafana permissions"
                         sudo chown -R 65534:65534 prometheus/data 2>/dev/null || echo "⚠️ Could not set Prometheus permissions"
+                        
+                        # Останавливаем существующие контейнеры если есть
+                        docker-compose down || true
                         
                         # Запускаем стек
                         echo "🐳 Starting Docker Compose stack..."
@@ -162,6 +176,9 @@ pipeline {
                         
                         echo "📋 Container status:"
                         docker-compose ps
+                        
+                        echo "🔍 Prometheus logs:"
+                        docker logs prometheus_pf --tail=10 || true
                     '''
                 }
             }
